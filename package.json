@@ -18,5 +18,8 @@
   "homepage": "https://github.com/rayfill/mrm-tasks#readme",
   "dependencies": {
     "mrm-core": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^18.0.6"
   }
 }

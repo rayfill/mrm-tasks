@@ -16,6 +16,16 @@ function task() {
     'esbuild-sass-plugin',
     'ts-node',
     'typescript',
+    'eslint',
+    'eslint-plugin-react-hooks',
+    'eslint-plugin-import',
+    'eslint-plugin-react',
+    'eslint-plugin-react',
+    'eslint-plugin-jsx-a11y',
+    'eslint-config-prettier',
+    '@typescript-eslint/eslint-plugin',
+    '@typescript-eslint/parser',
+    'prettier',
   ];
 
   install(depends, { dev: false });
@@ -30,11 +40,20 @@ function task() {
     'dist',
     'static',
   ]);
-  copyFiles(assetDir, ['build.ts', 'src/main.tsx', 'src/app.tsx', 'src/css/root.css', 'static/index.html']);
+  copyFiles(assetDir, [
+    'build.ts',
+    'src/main.tsx',
+    'src/app.tsx',
+    'src/css/root.css',
+    'static/index.html',
+    '.eslintrc.js',
+    '.prettierrc.json',
+  ]);
 
   const pkg = packageJson()
         .setScript('build', 'ts-node ./build.ts')
         .setScript('serve', 'npm run build serve')
+        .setScript('lint', 'eslint .')
         .save();
 
   lines('.gitignore')
