@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/rayfill/mrm-tasks#readme",
   "dependencies": {
+    "inquirer": "^9.1.2",
     "mrm-core": "^7.1.0"
   },
   "devDependencies": {

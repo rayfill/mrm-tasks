@@ -1,0 +1,44 @@
+{
+  "description": "${description}",
+  "manifest_version": 2,
+  "name": "${name}",
+  "version": "0.1",
+  "homepage_url": "${homepage_url}",
+  "icons": {
+    "64": "icon64.png"
+  },
+
+  "background": {
+    "scripts": ["scripts/background.js"]
+  },
+
+  "permissions": [
+    "tabs",
+    "action",
+    "<all_urls>"
+  ],
+
+  "content_scripts": [{
+    "matches": [
+      "https://*/*",
+      "http://*/*"
+    ],
+    "js": ["scripts/content.js"],
+    "run_at": "document_start"
+  }],
+
+  "page_action": {
+    "browser_style": true,
+    "default_icon": {
+          "64": "icon64.png"
+    },
+    "default_title": "${page_title}"
+  },
+
+  "applications": {
+    "gecko": {
+      "strict_min_version": "57.0a1"
+    }
+  }
+}
+
