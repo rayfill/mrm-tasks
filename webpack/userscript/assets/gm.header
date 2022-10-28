@@ -1,0 +1,13 @@
+// ==UserScript==
+// @name         {{name}}
+// @namespace    https://{{domain}}/
+// @version      {{version}}
+// @description  {{description}}
+// @downloadURL  https://raw.githubusercontent.com/rayfill/{{name}}/main/dist/index.user.js
+// @updateURL    https://raw.githubusercontent.com/rayfill/{{name}}/main/dist/index.user.js
+// @author       rayfill
+// @match        https://{{domain}}/*
+// @connect      {{connectDomain}}
+// @run-at       document-start
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
