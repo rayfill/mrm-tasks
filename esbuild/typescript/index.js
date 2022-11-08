@@ -7,7 +7,9 @@ function task() {
     'tslog',
   ];
   const devDepends = [
+    '@jgoz/esbuild-plugin-typecheck',
     '@types/node',
+    'concurrently',
     'esbuild',
     'ts-node',
     'typescript',
@@ -23,20 +25,35 @@ function task() {
     'src',
     'dist',
   ]);
+
   copyFiles(assetDir, [
-    'build.js',
     'src/index.ts',
+  ], { overwrite: false });
+  copyFiles(assetDir, [
+    'build.ts',
+    'tsconfig.json',
   ]);
 
   const pkg = packageJson();
-  pkg.setScript('build', 'node ./build.js')
-    .setScript('watch', 'npm run build -- watch')
+  pkg.merge({
+    type: 'module',
+    main: './dist/index.mjs',
+    types: './dist/index.d.ts',
+    exports: {
+      'import': './dist/index.mjs',
+      'require': './dist/index.cjs',
+    }
+  });
+  pkg.setScript('build', 'concurrently npm:build:*')
+    .setScript('build:esm', 'node --loader ts-node/esm ./build.ts esmodule')
+    .setScript('build:cjs', 'node --loader ts-node/esm ./build.ts')
+    .setScript('postbuild', 'tsc -p ./tsconfig.json --emitDeclarationOnly')
+    .setScript('watch', 'npm run build:esm -- watch')
     .save();
 
   lines('.gitignore')
     .add('*~')
     .add('node_modules')
-    .add('dist')
     .save();
 }
 
