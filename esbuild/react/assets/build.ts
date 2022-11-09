@@ -1,6 +1,9 @@
 import { build, BuildOptions, Message, serve, ServeOptions } from 'esbuild';
-import { sassPlugin } from 'esbuild-sass-plugin';
+import postCssPlugin from 'esbuild-style-plugin';
 import { join } from 'path';
+import tailwind from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
+import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
 
 import { Logger, ISettingsParam } from 'tslog';
 
@@ -17,15 +20,26 @@ const logger = new Logger(logParams);
 const buildOptions: BuildOptions = {
   entryPoints: {
     index: join('src', 'main.tsx'),
+//    style: join('src', 'css', 'tailwind.css'),
   },
   bundle: true,
   platform: 'browser',
   minify: true,
   sourcemap: true,
   outdir: join('dist', 'js'),
-  plugins: [sassPlugin()],
+  plugins: [
+    typecheckPlugin(),
+    postCssPlugin({
+      postcss: {
+        plugins: [
+          tailwind(),
+          autoprefixer(),
+        ],
+      }
+    }),
+  ],
   treeShaking: true,
-  jsx: 'automatic',
+  jsx: 'transform',
 };
 
 async function Build() {
@@ -79,4 +93,3 @@ builder
   .finally(() => {
     logger.info('build process finished');
   });
-

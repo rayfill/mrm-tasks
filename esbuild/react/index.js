@@ -9,13 +9,15 @@ function task() {
     'react-dom',
   ];
   const devDepends = [
+    '@jgoz/esbuild-plugin-typecheck',
     '@types/node',
     '@types/react',
     '@types/react-dom',
+    '@typescript-eslint/eslint-plugin',
+    '@typescript-eslint/parser',
+    'autoprefixer',
     'esbuild',
-    'esbuild-sass-plugin',
-    'ts-node',
-    'typescript',
+    'esbuild-style-plugin',
     'eslint',
     'eslint-plugin-react-hooks',
     'eslint-plugin-import',
@@ -23,9 +25,11 @@ function task() {
     'eslint-plugin-react',
     'eslint-plugin-jsx-a11y',
     'eslint-config-prettier',
-    '@typescript-eslint/eslint-plugin',
-    '@typescript-eslint/parser',
+    'postcss',
     'prettier',
+    'tailwindcss',
+    'ts-node',
+    'typescript',
   ];
 
   install(depends, { dev: false });
@@ -39,22 +43,29 @@ function task() {
     'src/css',
     'dist',
     'static',
+    'static/css',
   ]);
   copyFiles(assetDir, [
-    'build.ts',
-    'src/main.tsx',
-    'src/app.tsx',
-    'src/css/root.css',
-    'static/index.html',
     '.eslintrc.js',
     '.prettierrc.json',
+    'build.ts',
+    'src/app.tsx',
+    'src/main.tsx',
+    'src/css/tailwind.css',
+    'static/index.html',
+    'tailwind.config.cjs',
+    'tsconfig.json',
   ]);
 
-  const pkg = packageJson()
-        .setScript('build', 'ts-node ./build.ts')
-        .setScript('serve', 'npm run build serve')
-        .setScript('lint', 'eslint .')
-        .save();
+  const pkg = packageJson();
+
+  pkg.merge({
+    type: 'module',
+  });
+  pkg.setScript('build', 'node --loader ts-node/esm ./build.ts')
+    .setScript('serve', 'npm run build serve')
+    .setScript('lint', 'eslint .')
+    .save();
 
   lines('.gitignore')
     .add('*~')

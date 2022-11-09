@@ -1,6 +1,7 @@
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app';
-import './css/root.css';
+import './css/tailwind.css';
 
 window.addEventListener('DOMContentLoaded', () => {
   const rootElement = document.querySelector('#root');
