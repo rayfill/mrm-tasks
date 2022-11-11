@@ -36,13 +36,14 @@ function task() {
   const pkg = packageJson();
   pkg.merge({
     type: 'module',
-    main: './dist/index.js',
+    main: './dist/index.mjs',
     types: './dist/index.d.ts',
   });
   pkg
     .setScript('build', 'node --loader ts-node/esm ./build.ts esmodule')
     .setScript('postbuild', 'tsc -p ./tsconfig.json --emitDeclarationOnly')
     .setScript('watch', 'npm run build -- watch')
+    .setScript('start', 'node --loader ts-node/esm src/index.ts')
     .save();
 
   lines('.gitignore')
