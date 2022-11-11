@@ -20,7 +20,6 @@ const logger = new Logger(logParams);
 const buildOptions: BuildOptions = {
   entryPoints: {
     index: join('src', 'main.tsx'),
-//    style: join('src', 'css', 'tailwind.css'),
   },
   bundle: true,
   platform: 'browser',
@@ -39,7 +38,6 @@ const buildOptions: BuildOptions = {
     }),
   ],
   treeShaking: true,
-  jsx: 'transform',
 };
 
 async function Build() {
