@@ -4,7 +4,7 @@ const { join } = require('path');
 function task() {
 
   const depends = [
-    'tslog',
+    'tslog@3.4.4',
     'react',
     'react-dom',
   ];

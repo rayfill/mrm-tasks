@@ -6,7 +6,7 @@ function task({
 }) {
 
   const depends = [
-    'tslog',
+    'tslog@3.4.4',
     'webextension-polyfill',
   ];
   const devDepends = [
