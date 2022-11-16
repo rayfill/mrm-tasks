@@ -5,7 +5,7 @@ function task() {
 
   const depends = [
     'react',
-    'tslog@3.4.4',
+    'tslog@3.3.4',
   ];
   const devDepends = [
     '@jgoz/esbuild-plugin-typecheck',
