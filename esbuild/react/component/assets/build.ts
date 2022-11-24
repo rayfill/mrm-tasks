@@ -43,7 +43,7 @@ function createBuildOptions(module: ModuleType, watch: boolean): BuildOptions {
   }
   const buildOptions: BuildOptions = {
     entryPoints: entryPoint,
-    bundle: true,
+    bundle: false,
     platform: 'node',
     format: module,
     minify: !watch,
