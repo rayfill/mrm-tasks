@@ -1,4 +1,4 @@
-import { build, BuildOptions, Message, serve, ServeOptions } from 'esbuild';
+import { build, BuildOptions, Message, serve, ServeOptions, OnResolveArgs, Plugin, PluginBuild } from 'esbuild';
 import postCssPlugin from 'esbuild-style-plugin';
 import { join } from 'path';
 import tailwind from 'tailwindcss';
@@ -17,6 +17,43 @@ const logParams: ISettingsParam = {
 };
 const logger = new Logger(logParams);
 
+
+function ModuleAliasPlugin(config: Record<string, string>): Plugin {
+  const plugin: Plugin = {
+    name: 'module-alias-plugin',
+    setup: (build: PluginBuild): void => {
+      Object.keys(config).forEach((moduleName) => {
+        const moduleTarget = config[moduleName];
+        const filter = new RegExp(`^${moduleName}(?:\\/.*)?$`);
+        const namespace = 'module-alias-plugin-resolve';
+
+        build.onResolve({ filter }, (args: OnResolveArgs) => {
+          if (args.resolveDir === '') {
+            return undefined;
+          }
+
+          return {
+            path: args.path,
+            namespace,
+            pluginData: {
+              resolveDir: args.resolveDir,
+              moduleName,
+            }
+          }
+        });
+        build.onLoad({ filter, namespace }, async (args) => {
+          const replaceModulePath = args.path.replace(args.pluginData.moduleName, moduleTarget);
+          const importerCode = `export * from '${replaceModulePath}';\n` +
+            `export { default } from '${replaceModulePath}';\n`;
+
+          return { contents: importerCode, resolveDir: args.pluginData.resolveDir };
+        });
+      });
+    }
+  }
+  return plugin;
+}
+
 const buildOptions: BuildOptions = {
   entryPoints: {
     index: join('src', 'main.tsx'),
@@ -27,6 +64,9 @@ const buildOptions: BuildOptions = {
   sourcemap: true,
   outdir: join('dist', 'js'),
   plugins: [
+    ModuleAliasPlugin({
+      'react': `${process.cwd()}/node_modules/react`,
+    }),
     typecheckPlugin(),
     postCssPlugin({
       postcss: {

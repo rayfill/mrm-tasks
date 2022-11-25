@@ -55,7 +55,7 @@ function task() {
     'static/index.html',
     'tailwind.config.cjs',
     'tsconfig.json',
-  ]);
+  ], { overwrite: false });
 
   const pkg = packageJson();
 
