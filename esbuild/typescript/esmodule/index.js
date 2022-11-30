@@ -10,6 +10,7 @@ function task() {
     '@jgoz/esbuild-plugin-typecheck',
     '@types/node',
     'esbuild',
+    'esbuild-plugin-d.ts',
     'ts-node',
     'typescript',
   ];
@@ -41,7 +42,6 @@ function task() {
   });
   pkg
     .setScript('build', 'node --loader ts-node/esm ./build.ts esmodule')
-    .setScript('postbuild', 'tsc -p ./tsconfig.json --emitDeclarationOnly')
     .setScript('watch', 'npm run build -- watch')
     .setScript('start', 'node --loader ts-node/esm src/index.ts')
     .save();

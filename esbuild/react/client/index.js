@@ -17,6 +17,7 @@ function task() {
     '@typescript-eslint/parser',
     'autoprefixer',
     'esbuild',
+    'esbuild-plugin-d.ts',
     'esbuild-style-plugin',
     'eslint',
     'eslint-plugin-react-hooks',

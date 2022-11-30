@@ -1,5 +1,6 @@
 import { build, BuildFailure, BuildOptions, BuildResult, WatchMode } from 'esbuild';
 import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
+import { dtsPlugin } from 'esbuild-plugin-d.ts';
 import { join } from 'path';
 import { Logger, ISettingsParam } from 'tslog';
 
@@ -51,7 +52,10 @@ function createBuildOptions(module: ModuleType, watch: boolean): BuildOptions {
     outfile: join('dist', `index.${module === ModuleType.ESModule ? 'mjs' : 'cjs'}`),
     treeShaking: true,
     watch: watch,
-    plugins: [typecheckPlugin()]
+    plugins: [
+      dtsPlugin(),
+      typecheckPlugin(),
+    ]
   };
 
   return buildOptions;

@@ -4,6 +4,7 @@ import { join } from 'path';
 import tailwind from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
+import { dtsPlugin } from 'esbuild-plugin-d.ts';
 
 import { Logger, ISettingsParam } from 'tslog';
 
@@ -16,7 +17,6 @@ const logParams: ISettingsParam = {
   minLevel: 'info',
 };
 const logger = new Logger(logParams);
-
 
 function ModuleAliasPlugin(config: Record<string, string>): Plugin {
   const plugin: Plugin = {
@@ -43,10 +43,16 @@ function ModuleAliasPlugin(config: Record<string, string>): Plugin {
         });
         build.onLoad({ filter, namespace }, async (args) => {
           const replaceModulePath = args.path.replace(args.pluginData.moduleName, moduleTarget);
-          const importerCode = `export * from '${replaceModulePath}';\n` +
-            `export { default } from '${replaceModulePath}';\n`;
-
-          return { contents: importerCode, resolveDir: args.pluginData.resolveDir };
+          const importerCode = `export * from '${replaceModulePath}';\n`;
+          const defaultImporterCode = `export { default } from '${replaceModulePath}';\n`;
+          return import(`${moduleName}`).then((symbols) => {
+            const hasDefault = 'default' in symbols;
+            const contents = hasDefault ? importerCode + defaultImporterCode : importerCode;
+            return { contents: contents, resolveDir: args.pluginData.resolveDir };
+          }).catch((err) => {
+            console.log('error', err);
+            return undefined;
+          });
         });
       });
     }
@@ -67,6 +73,7 @@ const buildOptions: BuildOptions = {
     ModuleAliasPlugin({
       'react': `${process.cwd()}/node_modules/react`,
     }),
+    dtsPlugin(),
     typecheckPlugin(),
     postCssPlugin({
       postcss: {
