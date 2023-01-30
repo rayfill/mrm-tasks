@@ -4,7 +4,7 @@ const { join } = require('path');
 function task() {
 
   const depends = [
-    'tslog@3.3.4',
+    'tslog',
   ];
   const devDepends = [
     '@jgoz/esbuild-plugin-typecheck',
@@ -33,6 +33,9 @@ function task() {
     'build.ts',
     'tsconfig.json',
   ]);
+  copyFiles(assetDir, [
+    'build.config.ts',
+  ], { overwrite: false });
 
   const pkg = packageJson();
   pkg.merge({
@@ -40,8 +43,9 @@ function task() {
     types: './dist/index.d.ts',
   });
   pkg
-    .setScript('build:cjs', 'node --loader ts-node/esm ./build.ts')
-    .setScript('watch', 'npm run build:esm -- watch')
+    .setScript('build', 'ts-node ./build.ts')
+    .setScript('watch', 'npm run build -- watch')
+    .setScript('start', 'node --loader ts-node/esm src/index.ts')
     .save();
 
   lines('.gitignore')

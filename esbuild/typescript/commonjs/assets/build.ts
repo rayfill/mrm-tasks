@@ -1,60 +1,60 @@
-import { build, BuildFailure, BuildOptions, BuildResult, WatchMode } from 'esbuild';
 import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
+import { build, BuildContext, BuildOptions, context, Platform, ServeOptions, WatchOptions } from 'esbuild';
 import { dtsPlugin } from 'esbuild-plugin-d.ts';
 import { join } from 'path';
-import { Logger, ISettingsParam } from 'tslog';
+import { Logger } from 'tslog';
+import { config } from './build.config';
 
-const logParams: ISettingsParam = {
-  type: 'pretty',
-  displayFunctionName: false,
-  displayFilePath: 'hidden',
-  displayLogLevel: false,
-  displayLoggerName: false,
-  minLevel: 'info',
+export type Entrypoint = {
+  input: string;
+  output: string;
 };
-const logger = new Logger(logParams);
+export type Config = {
+  servedir?: string;
+  serveoutdir?: string;
+  bundle: boolean;
+  platform: Platform,
+  entrypoints: Array<Entrypoint>;
+};
 
-enum ModuleType {
+export enum ModuleType {
   ESModule = 'esm',
   CommonJS = 'cjs',
-}
-function createBuildOptions(module: ModuleType, watch: boolean): BuildOptions {
+};
 
-  const entryPoint: Record<string, string> = {};
-  entryPoint[`index.${module}`] = join('src', 'index.ts');
+const logger = new Logger({ minLevel: 3 });
 
-  const watchOptions: WatchMode = {
-    onRebuild: (error: BuildFailure | null, result: BuildResult | null): void => {
-      if (error !== null) {
-        error.errors.forEach((error) => {
-          logger.error(error);
-        });
-        error.warnings.forEach((warn) => {
-          logger.warn(warn);
-        });
-      } else if (result !== null) {
-        result.errors.forEach((error) => {
-          logger.error(error);
-        });
-        result.warnings.forEach((warn) => {
-          logger.warn(warn);
-        });
-      }
-    }
-  }
+function createBuildOptions(
+  entryPoints: Record<string, string>,
+  module: ModuleType,
+  platform: Platform = 'node',
+  optimized: boolean = false,
+  bundle: boolean = true,
+): BuildOptions {
+
   const buildOptions: BuildOptions = {
-    entryPoints: entryPoint,
-    bundle: true,
-    platform: 'node',
+    entryPoints,
+    bundle: bundle,
+    platform,
     format: module,
-    minify: !watch,
-    sourcemap: true,
-    //outdir: join('dist'),
-    outfile: join('dist', `index.${module === ModuleType.ESModule ? 'mjs' : 'cjs'}`),
-    treeShaking: true,
-    watch: watch,
+    minify: optimized,
+    sourcemap: optimized,
+    outdir: join(process.cwd(), 'dist'),
+    outExtension: {
+      '.js': module === ModuleType.ESModule ? '.mjs' : '.cjs',
+    },
+    outbase: 'src',
+    loader: {
+      '.png': 'dataurl',
+      '.jpg': 'dataurl',
+      '.jpeg': 'dataurl',
+    },
+    treeShaking: optimized,
     plugins: [
-      dtsPlugin(),
+      dtsPlugin({
+        outDir: 'dist',
+        tsconfig: 'tsconfig.json',
+      }),
       typecheckPlugin(),
     ]
   };
@@ -62,55 +62,83 @@ function createBuildOptions(module: ModuleType, watch: boolean): BuildOptions {
   return buildOptions;
 }
 
-async function Watch(module: ModuleType) {
-  const buildOptions = createBuildOptions(module, true);
-  doBuild(buildOptions);
+function createContext(buildOptions: BuildOptions): Promise<BuildContext<BuildOptions>> {
+  return context(buildOptions);
 }
 
-async function Build(module: ModuleType) {
-  const buildOptions = createBuildOptions(module, false);
-  doBuild(buildOptions);
+function getEntrypints(entrySource: Array<Entrypoint>): Record<string, string> {
+  const result: Record<string, string> = {};
+  entrySource.forEach((entry) => {
+    result[entry.output] = entry.input;
+  });
+
+  return result;
 }
 
-async function doBuild(buildOptions: BuildOptions) {
-  const buildResult = await build(buildOptions);
-  buildResult.errors.forEach((error) => {
-    logger.error(error);
-  });
+async function main() {
 
-  buildResult.warnings.forEach((warn) => {
-    logger.warn(warn);
-  });
+  let buildContext: BuildContext<BuildOptions> | undefined;
+  try {
+    const args = process.argv.slice(-2);
+    logger.debug('args', args);
 
-  if (buildResult.errors.length > 0) {
-    logger.error('build failed');
-  } else {
-    logger.info(buildResult);
-    logger.info('build succeeded');
-    const artifacts = buildResult.outputFiles?.map(output => output.path);
-    if (artifacts !== undefined) {
-      logger.info(`output artifacts:`, artifacts);
+    let isWatch = false;
+    let isServe = false;
+    let isEsm = false;
+
+    for (const arg of args) {
+      if (arg === 'watch') {
+        isWatch = true;
+      } else if (arg === 'serve') {
+        isWatch = true;
+        isServe = true;
+      } else if (arg === 'esmodule') {
+        isEsm = true;
+      }
     }
+
+    logger.debug('isWatch', isWatch, 'isServe', isServe, 'isEsm', isEsm);
+
+    const entryPoints: Record<string, string> = getEntrypints(config.entrypoints);
+    const platform: Platform = config.platform;
+
+    const buildOptions = createBuildOptions(
+      entryPoints,
+      isEsm ? ModuleType.ESModule : ModuleType.CommonJS,
+      platform,
+      false);
+    if (isServe) {
+      buildOptions.outdir = config.serveoutdir ?? config.servedir ?? 'static';
+      buildOptions.write = false;
+    }
+
+    logger.debug('buildOptions', buildOptions);
+
+    if (isWatch || isServe) {
+      buildContext = await createContext(buildOptions);
+      if (isWatch) {
+        const watchOptions: WatchOptions = {
+        };
+        await buildContext.watch(watchOptions);
+      }
+      if (isServe) {
+        const serveOptions: ServeOptions = {
+          servedir: config.servedir ?? 'static',
+          host: 'localhost',
+          port: 8888,
+        };
+        const serveResult = await buildContext.serve(serveOptions);
+        logger.info(`serve on http://${serveResult.host}:${serveResult.port}/`);
+      }
+    } else {
+      const buildResult = await build(buildOptions);
+    }
+  } catch (e) {
+    logger.error(e);
+    await buildContext?.dispose();
+  } finally {
+    logger.info('build finshed');
   }
 }
 
-const args = process.argv.slice(-2);
-let isWatch = false;
-let isEsm = false;
-
-for (const arg of args) {
-  if (arg === 'watch') {
-    isWatch = true;
-  } else if (arg === 'esmodule') {
-    isEsm = true;
-  }
-}
-
-const builder = isWatch ? Watch : Build;
-builder(isEsm ? ModuleType.ESModule : ModuleType.CommonJS)
-  .catch((error) => {
-    logger.error(error);
-  })
-  .finally(() => {
-    logger.info('build process finished');
-  });
+main().catch(logger.error);

@@ -4,7 +4,7 @@ const { join } = require('path');
 function task() {
 
   const depends = [
-    'tslog@3.3.4',
+    'tslog',
   ];
   const devDepends = [
     '@jgoz/esbuild-plugin-typecheck',
@@ -33,6 +33,9 @@ function task() {
     'build.ts',
     'tsconfig.json',
   ]);
+  copyFiles(assetDir, [
+    'build.config.ts',
+  ], { overwrite: false });
 
   const pkg = packageJson();
   pkg.merge({
