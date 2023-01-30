@@ -1,140 +1,156 @@
-import { build, BuildOptions, Message, serve, ServeOptions, OnResolveArgs, Plugin, PluginBuild } from 'esbuild';
+import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
+import { build, BuildContext, BuildOptions, context, Platform, ServeOptions, WatchOptions } from 'esbuild';
+import { dtsPlugin } from 'esbuild-plugin-d.ts';
 import postCssPlugin from 'esbuild-style-plugin';
-import { join } from 'path';
 import tailwind from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
-import { typecheckPlugin } from '@jgoz/esbuild-plugin-typecheck';
-import { dtsPlugin } from 'esbuild-plugin-d.ts';
 
-import { Logger, ISettingsParam } from 'tslog';
+import { join } from 'path';
+import { Logger } from 'tslog';
+import { config } from './build.config.js';
 
-const logParams: ISettingsParam = {
-  type: 'pretty',
-  displayFunctionName: false,
-  displayFilePath: 'hidden',
-  displayLogLevel: false,
-  displayLoggerName: false,
-  minLevel: 'info',
+export type Entrypoint = {
+  input: string;
+  output: string;
 };
-const logger = new Logger(logParams);
-
-function ModuleAliasPlugin(config: Record<string, string>): Plugin {
-  const plugin: Plugin = {
-    name: 'module-alias-plugin',
-    setup: (build: PluginBuild): void => {
-      Object.keys(config).forEach((moduleName) => {
-        const moduleTarget = config[moduleName];
-        const filter = new RegExp(`^${moduleName}(?:\\/.*)?$`);
-        const namespace = 'module-alias-plugin-resolve';
-
-        build.onResolve({ filter }, (args: OnResolveArgs) => {
-          if (args.resolveDir === '') {
-            return undefined;
-          }
-
-          return {
-            path: args.path,
-            namespace,
-            pluginData: {
-              resolveDir: args.resolveDir,
-              moduleName,
-            }
-          }
-        });
-        build.onLoad({ filter, namespace }, async (args) => {
-          const replaceModulePath = args.path.replace(args.pluginData.moduleName, moduleTarget);
-          const importerCode = `export * from '${replaceModulePath}';\n`;
-          const defaultImporterCode = `export { default } from '${replaceModulePath}';\n`;
-          return import(`${moduleName}`).then((symbols) => {
-            const hasDefault = 'default' in symbols;
-            const contents = hasDefault ? importerCode + defaultImporterCode : importerCode;
-            return { contents: contents, resolveDir: args.pluginData.resolveDir };
-          }).catch((err) => {
-            console.log('error', err);
-            return undefined;
-          });
-        });
-      });
-    }
-  }
-  return plugin;
-}
-
-const buildOptions: BuildOptions = {
-  entryPoints: {
-    index: join('src', 'main.tsx'),
-  },
-  bundle: true,
-  platform: 'browser',
-  minify: true,
-  sourcemap: true,
-  outdir: join('dist', 'js'),
-  plugins: [
-    ModuleAliasPlugin({
-      'react': `${process.cwd()}/node_modules/react`,
-    }),
-    dtsPlugin(),
-    typecheckPlugin(),
-    postCssPlugin({
-      postcss: {
-        plugins: [
-          tailwind(),
-          autoprefixer(),
-        ],
-      }
-    }),
-  ],
-  treeShaking: true,
+export type Config = {
+  servedir?: string;
+  serveoutdir?: string;
+  bundle: boolean;
+  platform: Platform,
+  entrypoints: Array<Entrypoint>;
 };
 
-async function Build() {
-  const buildResult = await build({ ...buildOptions });
-  buildResult.errors.forEach((error: Message) => {
-    logger.error(error);
-  });
+export enum ModuleType {
+  ESModule = 'esm',
+  CommonJS = 'cjs',
+};
 
-  buildResult.warnings.forEach((warn: Message) => {
-    logger.warn(warn);
-  });
+const logger = new Logger({ minLevel: 3 });
 
-  if (buildResult.errors.length > 0) {
-    logger.error('build failed');
-  } else {
-    logger.info(buildResult);
-    logger.info('build succeeded');
-    const artifacts = buildResult.outputFiles?.map(output => output.path);
-    if (artifacts !== undefined) {
-      logger.info(`output artifacts:`, artifacts);
-    }
-  }
-}
+function createBuildOptions(
+  entryPoints: Record<string, string>,
+  module: ModuleType,
+  platform: Platform = 'node',
+  optimized: boolean = false,
+  bundle: boolean = true,
+): BuildOptions {
 
-async function Serve() {
-  const serveOptions: ServeOptions = {
-    port: 8888,
-    servedir: 'static',
+  const buildOptions: BuildOptions = {
+    entryPoints,
+    bundle: bundle,
+    platform,
+    format: module,
+    minify: optimized,
+    sourcemap: optimized,
+    outdir: join(process.cwd(), 'dist'),
+    outExtension: {
+      '.js': module === ModuleType.ESModule ? '.mjs' : '.cjs',
+    },
+    outbase: 'src',
+    loader: {
+      '.png': 'dataurl',
+      '.jpg': 'dataurl',
+      '.jpeg': 'dataurl',
+    },
+    treeShaking: optimized,
+    plugins: [
+      dtsPlugin({
+        outDir: 'dist',
+        tsconfig: 'tsconfig.json',
+      }),
+      typecheckPlugin(),
+      postCssPlugin({
+        postcss: {
+          plugins: [
+            tailwind(),
+            autoprefixer(),
+          ],
+        }
+      }),
+    ]
   };
 
-  delete buildOptions.watch;
-  delete buildOptions.outfile;
-  buildOptions.outdir = join('static', 'js');
-  buildOptions.incremental = true;
-  buildOptions.minify = false;
-
-  logger.debug('buildOptions', buildOptions);
-  logger.debug('serveOptions', serveOptions);
-  const serveResult = await serve(serveOptions, buildOptions);
-  logger.info(`serving on http://${serveResult.host}:${serveResult.port}`);
-  await serveResult.wait;
+  return buildOptions;
 }
 
-const args = process.argv.slice(-2);
+function createContext(buildOptions: BuildOptions): Promise<BuildContext<BuildOptions>> {
+  return context(buildOptions);
+}
 
-const builder = ((args.length > 0 && args.slice(-1)[0] === 'serve') ? Serve() : Build());
-builder
-  .catch((error) => {
-    logger.error(error);
-  })
-  .finally(() => {
-    logger.info('build process finished');
+function getEntrypints(entrySource: Array<Entrypoint>): Record<string, string> {
+  const result: Record<string, string> = {};
+  entrySource.forEach((entry) => {
+    result[entry.output] = entry.input;
   });
+
+  return result;
+}
+
+async function main() {
+
+  let buildContext: BuildContext<BuildOptions> | undefined;
+  try {
+    const args = process.argv.slice(-2);
+    logger.debug('args', args);
+
+    let isWatch = false;
+    let isServe = false;
+    let isEsm = false;
+
+    for (const arg of args) {
+      if (arg === 'watch') {
+        isWatch = true;
+      } else if (arg === 'serve') {
+        isWatch = true;
+        isServe = true;
+      } else if (arg === 'esmodule') {
+        isEsm = true;
+      }
+    }
+
+    logger.debug('isWatch', isWatch, 'isServe', isServe, 'isEsm', isEsm);
+
+    const entryPoints: Record<string, string> = getEntrypints(config.entrypoints);
+    const platform: Platform = config.platform;
+
+    const buildOptions = createBuildOptions(
+      entryPoints,
+      isEsm ? ModuleType.ESModule : ModuleType.CommonJS,
+      platform,
+      !isWatch);
+    if (isServe) {
+      buildOptions.outdir = config.serveoutdir ?? config.servedir ?? 'static';
+      buildOptions.write = false;
+    }
+
+    logger.debug('buildOptions', buildOptions);
+
+    if (isWatch || isServe) {
+      buildContext = await createContext(buildOptions);
+      if (isWatch) {
+        const watchOptions: WatchOptions = {
+        };
+        await buildContext.watch(watchOptions);
+      }
+      if (isServe) {
+        const serveOptions: ServeOptions = {
+          servedir: config.servedir ?? 'static',
+          host: 'localhost',
+          port: 8888,
+        };
+        const serveResult = await buildContext.serve(serveOptions);
+        logger.info(`serve on http://${serveResult.host}:${serveResult.port}/`);
+      }
+    } else {
+      const buildResult = await build(buildOptions);
+    }
+  } catch (e) {
+    logger.error(e);
+    await buildContext?.dispose();
+  } finally {
+    logger.info('build finshed');
+  }
+}
+
+main().catch(logger.error);

@@ -4,7 +4,7 @@ const { join } = require('path');
 function task() {
 
   const depends = [
-    'tslog@3.3.4',
+    'tslog',
     'react',
     'react-dom',
   ];
@@ -57,13 +57,16 @@ function task() {
     'tailwind.config.cjs',
     'tsconfig.json',
   ], { overwrite: false });
+  copyFiles(assetDir, [
+    'build.config.ts',
+  ], { overwrite: true });
 
   const pkg = packageJson();
 
   pkg.merge({
     type: 'module',
   });
-  pkg.setScript('build', 'node --loader ts-node/esm ./build.ts')
+  pkg.setScript('build', 'node --loader ts-node/esm ./build.ts esmodule')
     .setScript('serve', 'npm run build serve')
     .setScript('lint', 'eslint .')
     .save();
