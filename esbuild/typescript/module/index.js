@@ -3,6 +3,12 @@ const { join } = require('path');
 
 function task() {
 
+  if (!require('fs').existsSync('./package.json')) {
+    console.error(`package.json does not exists`);
+    console.error(`task aborted`);
+    return;
+  }
+
   const depends = [
     'tslog',
   ];

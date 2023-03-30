@@ -5,6 +5,12 @@ function task({
   description, name, homepage_url, page_title,
 }) {
 
+  if (!require('fs').existsSync('./package.json')) {
+    console.error(`package.json does not exists`);
+    console.error(`task aborted`);
+    return;
+  }
+
   const depends = [
     'tslog@3.3.4',
     'webextension-polyfill',
