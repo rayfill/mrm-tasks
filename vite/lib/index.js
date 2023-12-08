@@ -13,9 +13,16 @@ function task() {
   ];
   const devDepends = [
     '@types/node',
+    'ts-node',
+    '@swc/core',
+    '@swc/helpers',
+    'regenerator-runtime',
     'typescript',
     'vite',
+    'vitest',
     'vite-plugin-banner',
+    'vite-plugin-checker',
+    'vite-plugin-dts',
   ];
 
   install(depends, { dev: false });
@@ -42,9 +49,15 @@ function task() {
   pkg.merge({
     type: 'module',
     private: true,
+    exports: {
+      'import': './dist/index.js',
+      'require': './dist/index.cjs'
+    },
+    types: './dist/index.d.ts',
     scripts: {
       'dev': 'vite build --watch',
       'build': 'tsc && vite build',
+      'test': 'vitest',
     }
   }).save();
 
@@ -59,7 +72,6 @@ function task() {
     .add('lerna-debug.log*')
     .add('')
     .add('node_modules')
-    .add('dist')
     .add('dist-ssr')
     .add('*.local')
     .add('')
@@ -80,4 +92,4 @@ function task() {
 
 
 module.exports = task;
-module.exports.description = 'react project, using esbuild';
+module.exports.description = 'vite for library build';
